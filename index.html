@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Land Registry DApp</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex justify-center items-center min-h-screen">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-2xl">
+        <h1 class="text-3xl font-bold mb-6 text-center">Land Registry DApp</h1>
+        
+        <!-- Connect Wallet -->
+        <div class="mb-6">
+            <button id="connectWallet" class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">Connect MetaMask</button>
+            <p id="account" class="mt-2 text-gray-600"></p>
+        </div>
+
+        <!-- Register Land -->
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold mb-2">Register Land</h2>
+            <input id="landId" type="number" placeholder="Land ID" class="w-full p-2 mb-2 border rounded">
+            <input id="location" type="text" placeholder="Location" class="w-full p-2 mb-2 border rounded">
+            <input id="size" type="number" placeholder="Size (sq ft)" class="w-full p-2 mb-2 border rounded">
+            <button id="registerLand" class="w-full bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600">Register Land</button>
+        </div>
+
+        <!-- Transfer Ownership -->
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold mb-2">Transfer Ownership</h2>
+            <input id="transferLandId" type="number" placeholder="Land ID" class="w-full p-2 mb-2 border rounded">
+            <input id="newOwner" type="text" placeholder="New Owner Address" class="w-full p-2 mb-2 border rounded">
+            <button id="transferOwnership" class="w-full bg-purple-500 text-white py-2 px-4 rounded hover:bg-purple-600">Transfer Ownership</button>
+        </div>
+
+        <!-- Get Land Details -->
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold mb-2">Get Land Details</h2>
+            <input id="queryLandId" type="number" placeholder="Land ID" class="w-full p-2 mb-2 border rounded">
+            <button id="getLandDetails" class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">Get Details</button>
+            <div id="landDetails" class="mt-2 text-gray-600"></div>
+        </div>
+    </div>
+
+    <script>
+        // Smart contract ABI (from Remix compilation)
+        const contractABI = [
+            [
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "_landId",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "string",
+                            "name": "_location",
+                            "type": "string"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "_size",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "registerLand",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "_landId",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "address",
+                            "name": "_to",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "transferOwnership",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "_landId",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "getLandDetails",
+                    "outputs": [
+                        {
+                            "internalType": "address",
+                            "name": "owner",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "string",
+                            "name": "",
+                            "type": "string"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "size",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "bytes32",
+                            "name": "landId",
+                            "type": "bytes32"
+                        },
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "owner",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "string",
+                            "name": "location",
+                            "type": "string"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "size",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "LandRegistered",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "bytes32",
+                            "name": "landId",
+                            "type": "bytes32"
+                        },
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "from",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "to",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "OwnershipTransferred",
+                    "type": "event"
+                }
+            ]
+        ];
+
+        // Contract address (replace with your deployed contract address)
+        const contractAddress = "0x1c32bC2AC936C27fC9590CF8B37E2248e81D90B5";
+
+        let web3;
+        let contract;
+        let accounts;
+
+        // Initialize Web3 and contract
+        async function init() {
+            if (window.ethereum) {
+                web3 = new Web3(window.ethereum);
+                try {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    accounts = await web3.eth.getAccounts();
+                    contract = new web3.eth.Contract(contractABI[0], contractAddress);
+                    document.getElementById('account').innerText = `Connected: ${accounts[0]}`;
+                } catch (error) {
+                    console.error("User denied account access", error);
+                }
+            } else {
+                alert("Please install MetaMask!");
+            }
+        }
+
+        // Connect Wallet
+        document.getElementById('connectWallet').addEventListener('click', async () => {
+            await init();
+        });
+
+        // Register Land
+        document.getElementById('registerLand').addEventListener('click', async () => {
+            const landId = document.getElementById('landId').value;
+            const location = document.getElementById('location').value;
+            const size = document.getElementById('size').value;
+
+            if (!landId || !location || !size) {
+                alert("Please fill all fields");
+                return;
+            }
+
+            try {
+                await contract.methods.registerLand(landId, location, size).send({ from: accounts[0] });
+                alert("Land registered successfully!");
+            } catch (error) {
+                console.error(error);
+                alert("Error registering land: " + error.message);
+            }
+        });
+
+        // Transfer Ownership
+        document.getElementById('transferOwnership').addEventListener('click', async () => {
+            const landId = document.getElementById('transferLandId').value;
+            const newOwner = document.getElementById('newOwner').value;
+
+            if (!landId || !newOwner) {
+                alert("Please fill all fields");
+                return;
+            }
+
+            try {
+                await contract.methods.transferOwnership(landId, newOwner).send({ from: accounts[0] });
+                alert("Ownership transferred successfully!");
+            } catch (error) {
+                console.error(error);
+                alert("Error transferring ownership: " + error.message);
+            }
+        });
+
+        // Get Land Details
+        document.getElementById('getLandDetails').addEventListener('click', async () => {
+            const landId = document.getElementById('queryLandId').value;
+
+            if (!landId) {
+                alert("Please enter a Land ID");
+                return;
+            }
+
+            try {
+                const result = await contract.methods.getLandDetails(landId).call();
+                document.getElementById('landDetails').innerText = 
+                    `Owner: ${result.owner}\nLocation: ${result[1]}\nSize: ${result.size} sq ft`;
+            } catch (error) {
+                console.error(error);
+                alert("Error fetching land details: " + error.message);
+            }
+        });
+
+        // Initialize on page load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
